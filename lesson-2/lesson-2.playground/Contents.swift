@@ -5,7 +5,6 @@ var publisher = (1...100).publisher
 
 print("method 1")
 publisher
-    .filter( {$0 > 50} )
     .filter( {$0 > 50 && $0 < 71 } )
     .filter({ val in
         val % 2 == 0
