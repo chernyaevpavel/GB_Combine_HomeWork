@@ -1,5 +1,32 @@
-import UIKit
+import Foundation
 import Combine
+
+extension Character {
+    var isSimpleEmoji: Bool {
+        guard let firstScalar = unicodeScalars.first else { return false }
+        return firstScalar.properties.isEmoji && firstScalar.value > 0x238C
+    }
+
+    var isCombinedIntoEmoji: Bool { unicodeScalars.count > 1 && unicodeScalars.first?.properties.isEmoji ?? false }
+
+    var isEmoji: Bool { isSimpleEmoji || isCombinedIntoEmoji }
+}
+
+
+extension String {
+    var isSingleEmoji: Bool { count == 1 && containsEmoji }
+
+    var containsEmoji: Bool { contains { $0.isEmoji } }
+
+    var containsOnlyEmoji: Bool { !isEmpty && !contains { !$0.isEmoji } }
+
+    var emojiString: String { emojis.map { String($0) }.reduce("", +) }
+
+    var emojis: [Character] { filter { $0.isEmoji } }
+
+    var emojiScalars: [UnicodeScalar] { filter { $0.isEmoji }.flatMap { $0.unicodeScalars } }
+}
+
 
 
 var subscriptions = Set<AnyCancellable>()
@@ -20,8 +47,25 @@ publisher
         }
         return resultStr
     })
-    .sink { print($0) }
+    .sink { print("p1 \($0)") }
     .store(in: &subscriptions)
+
+
+
+let publisher2 = PassthroughSubject<String, Never>()
+
+publisher2
+    .debounce(for: .seconds(1), scheduler: DispatchQueue.main)
+    .map({ $0.isSingleEmoji ? $0 : ""
+    })
+    .sink { print("p2 \($0)") }
+    .store(in: &subscriptions)
+
+publisher
+    .merge(with: publisher2)
+    .sink { print("p3 \($0)") }
+    .store(in: &subscriptions)
+
 
 publisher.send("A")
 publisher.send("B")
@@ -34,4 +78,16 @@ DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
     publisher.send("c")
     publisher.send("d")
 
+}
+
+publisher2.send("a2")
+publisher2.send("b2")
+publisher2.send("c2")
+publisher2.send("🐱")
+
+DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+    publisher2.send("a3")
+    publisher2.send("b3")
+    publisher2.send("c3")
+    publisher2.send("d3")
 }
